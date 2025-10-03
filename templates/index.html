@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Transformer</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>HTML Transformer</h1>
+            <p>Transform HTML content while preserving similar styling</p>
+        </header>
+
+        <div class="url-section">
+            <div class="input-group">
+                <label for="source-url">Source URL (e.g., WeChat article):</label>
+                <input type="url" id="source-url" placeholder="https://mp.weixin.qq.com/s/..." />
+                <button id="fetch-btn">Fetch HTML</button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="left-pane">
+                <div class="pane-header">
+                    <h3>Source HTML</h3>
+                    <div class="pane-controls">
+                        <button id="clear-source">Clear</button>
+                        <button id="format-source">Format</button>
+                    </div>
+                </div>
+                <textarea id="source-html" placeholder="Paste your source HTML here or fetch from URL above..."></textarea>
+                
+                <div class="pane-header">
+                    <h3>Target Content</h3>
+                    <div class="pane-controls">
+                        <button id="clear-target">Clear</button>
+                    </div>
+                </div>
+                <textarea id="target-content" placeholder="Enter the content you want to transform..."></textarea>
+                
+                <div class="ai-controls">
+                    <label class="ai-toggle">
+                        <input type="checkbox" id="use-ai-checkbox">
+                        <span>🤖 Use DeepSeek AI Enhancement</span>
+                        <span id="ai-status" class="ai-status">Checking...</span>
+                    </label>
+                    <button id="analyze-btn" class="ai-button" disabled>Analyze with AI</button>
+                    <button id="suggest-btn" class="ai-button" disabled>Get AI Suggestions</button>
+                </div>
+                <button id="transform-btn" class="transform-button">Transform HTML</button>
+            </div>
+
+            <div class="right-pane">
+                <div class="pane-header">
+                    <h3>Transformed Result</h3>
+                    <div class="pane-controls">
+                        <button id="copy-result">Copy HTML</button>
+                        <button id="download-result">Download</button>
+                        <button id="preview-toggle">Toggle Preview</button>
+                    </div>
+                </div>
+                <div id="result-container">
+                    <div id="result-code" class="code-view">
+                        <pre><code id="result-html" class="language-html"><!-- Transformed HTML will appear here --></code></pre>
+                    </div>
+                    <div id="result-preview" class="preview-view" style="display: none;">
+                        <iframe id="preview-frame"></iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <span>Processing...</span>
+        </div>
+
+        <div id="status" class="status hidden"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
