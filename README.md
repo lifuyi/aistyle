@@ -4,7 +4,7 @@ A web application that transforms HTML content while preserving similar styling.
 
 ## Features
 
-- **URL Fetching**: Fetch HTML content directly from URLs (especially WeChat articles)
+- **Page Style Translation**: Extract and translate styling from URLs (especially WeChat articles)
 - **Dual Pane Interface**: Source HTML on the left, transformed result on the right
 - **Style Preservation**: Automatically extracts and applies similar styling from source to target content
 - **Live Preview**: Toggle between code view and live preview of transformed HTML
@@ -55,8 +55,8 @@ A web application that transforms HTML content while preserving similar styling.
 ### Basic Workflow
 
 1. **Input Source**: 
-   - Enter a URL (like a WeChat article) in the URL field and click "Fetch HTML"
-   - OR paste HTML directly into the "Source HTML" textarea
+   - Enter a URL (like a WeChat article) in the URL field and click \"Translate Page Style\"
+   - OR paste HTML directly into the \"Source HTML\" textarea
 
 2. **Add Target Content**: 
    - Enter the content you want to transform in the "Target Content" textarea
@@ -71,7 +71,7 @@ A web application that transforms HTML content while preserving similar styling.
 
 ### Features in Detail
 
-- **URL Fetching**: Supports fetching from any public URL, optimized for WeChat articles
+- **Page Style Translation**: Supports translating styles from any public URL, optimized for WeChat articles
 - **Style Extraction**: Automatically extracts CSS rules, inline styles, classes, and IDs
 - **Smart Styling**: Applies the most common styles from source to similar elements in target
 - **Format HTML**: Clean up and format your source HTML for better readability
@@ -80,7 +80,7 @@ A web application that transforms HTML content while preserving similar styling.
 ## API Endpoints
 
 ### POST /fetch-url
-Fetches HTML content from a given URL.
+Translates page style by fetching HTML content from a given URL.
 
 **Parameters:**
 - `url` (form data): The URL to fetch
@@ -88,8 +88,8 @@ Fetches HTML content from a given URL.
 **Response:**
 ```json
 {
-    "success": true,
-    "html": "<!-- fetched HTML content -->"
+    \"success\": true,
+    \"html\": \"<!-- HTML content with extracted styles -->\"
 }
 ```
 

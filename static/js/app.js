@@ -30,7 +30,7 @@ class HTMLTransformerApp {
     }
 
     bindEvents() {
-        this.elements.fetchBtn.addEventListener('click', () => this.fetchHtmlFromUrl());
+        this.elements.fetchBtn.addEventListener('click', () => this.translatePageStyle());
         this.elements.transformBtn.addEventListener('click', () => this.transformHtml());
         this.elements.clearSource.addEventListener('click', () => this.clearSource());
         this.elements.clearTarget.addEventListener('click', () => this.clearTarget());
@@ -46,11 +46,11 @@ class HTMLTransformerApp {
         
         // Enter key handling
         this.elements.sourceUrl.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.fetchHtmlFromUrl();
+            if (e.key === 'Enter') this.translatePageStyle();
         });
     }
 
-    async fetchHtmlFromUrl() {
+    async translatePageStyle() {
         const url = this.elements.sourceUrl.value.trim();
         
         if (!url) {
@@ -78,13 +78,13 @@ class HTMLTransformerApp {
             
             if (result.success) {
                 this.elements.sourceHtml.value = result.html;
-                this.showStatus('HTML fetched successfully!', 'success');
+                this.showStatus('Page style translated successfully!', 'success');
                 this.saveToLocalStorage();
             } else {
                 this.showStatus(`Error: ${result.error}`, 'error');
             }
         } catch (error) {
-            console.error('Fetch error:', error);
+            console.error('Style translation error:', error);
             this.showStatus('Network error occurred', 'error');
         } finally {
             this.showLoading(false);

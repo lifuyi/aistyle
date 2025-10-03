@@ -12,7 +12,6 @@ from bs4 import BeautifulSoup
 import re
 import logging
 from typing import Optional
-import aiofiles
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -35,7 +34,7 @@ class HTMLTransformer:
         })
     
     def fetch_html_from_url(self, url: str) -> str:
-        """Fetch HTML content from a given URL"""
+        """Translate page style from a given URL"""
         try:
             response = self.session.get(url, timeout=10)
             response.raise_for_status()
@@ -129,7 +128,7 @@ async def index(request: Request):
 
 @app.post("/fetch-url")
 async def fetch_url(url: str = Form(...)):
-    """Fetch HTML content from a given URL"""
+    """Translate page style from a given URL"""
     try:
         html_content = transformer.fetch_html_from_url(url)
         return {"success": True, "html": html_content}
@@ -157,4 +156,4 @@ async def transform_html(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main_clean:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

@@ -11,27 +11,26 @@
     <div class="container">
         <header>
             <h1>HTML Transformer</h1>
-            <p>Transform HTML content while preserving similar styling</p>
         </header>
 
         <div class="url-section">
             <div class="input-group">
                 <label for="source-url">Source URL (e.g., WeChat article):</label>
                 <input type="url" id="source-url" placeholder="https://mp.weixin.qq.com/s/..." />
-                <button id="fetch-btn">Fetch HTML</button>
+                <button id="fetch-btn">Translate Page Style</button>
             </div>
         </div>
 
         <div class="main-content">
             <div class="left-pane">
                 <div class="pane-header">
-                    <h3>Source HTML</h3>
+                    <h3>Source Text</h3>
                     <div class="pane-controls">
                         <button id="clear-source">Clear</button>
                         <button id="format-source">Format</button>
                     </div>
                 </div>
-                <textarea id="source-html" placeholder="Paste your source HTML here or fetch from URL above..."></textarea>
+                <textarea id="source-html" placeholder="Paste your source HTML here or translate style from URL above..."></textarea>
                 
                 <div class="pane-header">
                     <h3>Target Content</h3>
@@ -41,15 +40,6 @@
                 </div>
                 <textarea id="target-content" placeholder="Enter the content you want to transform..."></textarea>
                 
-                <div class="ai-controls">
-                    <label class="ai-toggle">
-                        <input type="checkbox" id="use-ai-checkbox">
-                        <span>🤖 Use DeepSeek AI Enhancement</span>
-                        <span id="ai-status" class="ai-status">Checking...</span>
-                    </label>
-                    <button id="analyze-btn" class="ai-button" disabled>Analyze with AI</button>
-                    <button id="suggest-btn" class="ai-button" disabled>Get AI Suggestions</button>
-                </div>
                 <button id="transform-btn" class="transform-button">Transform HTML</button>
             </div>
 
