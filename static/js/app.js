@@ -15,8 +15,7 @@ class HTMLTransformerApp {
             loading: document.getElementById('loading'),
             status: document.getElementById('status'),
             clearSource: document.getElementById('clear-source'),
-            clearTarget: document.getElementById('clear-target'),
-            formatSource: document.getElementById('format-source'),
+            addToTarget: document.getElementById('add-to-target'),
             copyResult: document.getElementById('copy-result'),
             downloadResult: document.getElementById('download-result'),
             previewToggle: document.getElementById('preview-toggle')
@@ -33,8 +32,7 @@ class HTMLTransformerApp {
         this.elements.fetchBtn.addEventListener('click', () => this.translatePageStyle());
         this.elements.transformBtn.addEventListener('click', () => this.transformHtml());
         this.elements.clearSource.addEventListener('click', () => this.clearSource());
-        this.elements.clearTarget.addEventListener('click', () => this.clearTarget());
-        this.elements.formatSource.addEventListener('click', () => this.formatSource());
+        this.elements.addToTarget.addEventListener('click', () => this.addToTarget());
         this.elements.copyResult.addEventListener('click', () => this.copyResult());
         this.elements.downloadResult.addEventListener('click', () => this.downloadResult());
         this.elements.previewToggle.addEventListener('click', () => this.togglePreview());
@@ -124,7 +122,13 @@ class HTMLTransformerApp {
                 this.lastTransformedHtml = result.transformed_html;
                 this.displayResult(result.transformed_html);
                 this.showProcessingInfo(result.content_type, result.processing_strategy);
-                this.showStatus('HTML transformed successfully!', 'success');
+                
+                // Update target content with processed markdown for editing
+                if (result.processed_markdown) {
+                    this.elements.targetContent.value = result.processed_markdown;
+                }
+                
+                this.showStatus('HTML transformed successfully! Target Content is now editable with processed markdown.', 'success');
             } else {
                 this.showStatus(`Transformation error: ${result.error}`, 'error');
             }
@@ -187,20 +191,50 @@ class HTMLTransformerApp {
         this.showStatus('Source cleared', 'success');
     }
 
-    clearTarget() {
-        this.elements.targetContent.value = '';
-        this.saveToLocalStorage();
-        this.showStatus('Target content cleared', 'success');
-    }
+    async addToTarget() {
+        const sourceText = this.elements.sourceHtml.value.trim();
+        
+        if (!sourceText) {
+            this.showStatus('Please enter source text', 'error');
+            return;
+        }
 
-    formatSource() {
-        const html = this.elements.sourceHtml.value;
-        if (html.trim()) {
-            this.elements.sourceHtml.value = this.formatHtml(html);
-            this.saveToLocalStorage();
-            this.showStatus('HTML formatted', 'success');
+        this.showLoading(true);
+        
+        try {
+            const formData = new FormData();
+            formData.append('source_text', sourceText);
+            
+            const response = await fetch('/process-source', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Append to target content with a newline if there's existing content
+                const currentTarget = this.elements.targetContent.value;
+                if (currentTarget.trim()) {
+                    this.elements.targetContent.value = currentTarget + '\n\n' + result.processed_content;
+                } else {
+                    this.elements.targetContent.value = result.processed_content;
+                }
+                
+                this.saveToLocalStorage();
+                this.showStatus(`Added ${result.content_type} content to Target`, 'success');
+            } else {
+                this.showStatus(`Error: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            console.error('Add to target error:', error);
+            this.showStatus('Network error occurred', 'error');
+        } finally {
+            this.showLoading(false);
         }
     }
+
+    
 
     async copyResult() {
         if (!this.lastTransformedHtml) {

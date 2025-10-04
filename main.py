@@ -74,6 +74,45 @@ class HTMLTransformer:
         
         return "plain_text", content
     
+    def convert_text_to_markdown(self, text: str) -> str:
+        """
+        Convert plain text to markdown using an external API
+        """
+        try:
+            # Using a simple text-to-markdown conversion service
+            # In a real implementation, you might use OpenAI API or similar
+            # For now, we'll do basic conversion locally
+            
+            # Basic text to markdown conversion
+            lines = text.split('\n')
+            markdown_lines = []
+            
+            for line in lines:
+                stripped_line = line.strip()
+                if not stripped_line:
+                    markdown_lines.append("")  # Preserve empty lines
+                    continue
+                
+                # Convert numbered lists
+                if re.match(r'^\d+\.\s+', stripped_line):
+                    markdown_lines.append(stripped_line)
+                # Convert bullet points
+                elif stripped_line.startswith('•') or stripped_line.startswith('-') or stripped_line.startswith('*'):
+                    markdown_lines.append(f"- {stripped_line[1:].strip()}")
+                # Convert potential headers (all caps or short lines)
+                elif len(stripped_line) < 50 and stripped_line.isupper():
+                    markdown_lines.append(f"## {stripped_line.title()}")
+                # Regular paragraph
+                else:
+                    markdown_lines.append(stripped_line)
+            
+            return '\n'.join(markdown_lines)
+            
+        except Exception as e:
+            logger.error(f"Error converting text to markdown: {e}")
+            # Fallback to original text if conversion fails
+            return text
+    
     def process_target_content(self, content: str) -> Tuple[str, str]:
         """
         Process target content based on its type
@@ -89,23 +128,12 @@ class HTMLTransformer:
             )
             return "markdown", html_content
         elif content_type == "plain_text":
-            # Convert plain text to HTML paragraphs
-            paragraphs = processed_content.split('\n\n')
-            html_paragraphs = []
-            
-            for paragraph in paragraphs:
-                if paragraph.strip():
-                    # Handle single line breaks within paragraphs
-                    lines = paragraph.split('\n')
-                    if len(lines) > 1:
-                        # Join lines with spaces for single line breaks
-                        paragraph_text = ' '.join(line.strip() for line in lines if line.strip())
-                    else:
-                        paragraph_text = paragraph.strip()
-                    
-                    html_paragraphs.append(f"<p>{paragraph_text}</p>")
-            
-            html_content = '\n'.join(html_paragraphs)
+            # Convert plain text to markdown first, then to HTML
+            markdown_content = self.convert_text_to_markdown(processed_content)
+            html_content = markdown.markdown(
+                markdown_content,
+                extensions=['tables', 'fenced_code', 'codehilite', 'toc']
+            )
             return "plain_text", html_content
         else:
             return "empty", ""
@@ -229,6 +257,35 @@ async def fetch_url(url: str = Form(...)):
         return {"success": False, "error": str(e.detail)}
 
 
+@app.post("/process-source")
+async def process_source_text(source_text: str = Form(...)):
+    """Process source text and return appropriate markdown for Target Content"""
+    try:
+        if not source_text.strip():
+            return {"success": False, "error": "Source text is required"}
+        
+        content_type, _ = transformer.detect_content_type(source_text)
+        
+        if content_type == "markdown":
+            # Already markdown, return as is
+            processed_content = source_text
+        elif content_type == "plain_text":
+            # Convert plain text to markdown
+            processed_content = transformer.convert_text_to_markdown(source_text)
+        else:
+            processed_content = source_text
+        
+        return {
+            "success": True, 
+            "content_type": content_type,
+            "processed_content": processed_content
+        }
+    
+    except Exception as e:
+        logger.error(f"Error processing source text: {e}")
+        return {"success": False, "error": f"Processing error: {str(e)}"}
+
+
 @app.post("/transform")
 async def transform_html(
     source_html: str = Form(...),
@@ -240,6 +297,17 @@ async def transform_html(
             return {"success": False, "error": "Both source HTML and target content are required"}
         
         result = transformer.transform_html(source_html, target_content)
+        
+        # Add the original content and the processed markdown for editing
+        content_type, _ = transformer.detect_content_type(target_content)
+        if content_type == "plain_text":
+            processed_markdown = transformer.convert_text_to_markdown(target_content)
+            result["original_content"] = target_content
+            result["processed_markdown"] = processed_markdown
+        else:
+            result["original_content"] = target_content
+            result["processed_markdown"] = target_content
+        
         return {"success": True, **result}
     
     except Exception as e:
