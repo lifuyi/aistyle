@@ -123,6 +123,7 @@ class HTMLTransformerApp {
             if (result.success) {
                 this.lastTransformedHtml = result.transformed_html;
                 this.displayResult(result.transformed_html);
+                this.showProcessingInfo(result.content_type, result.processing_strategy);
                 this.showStatus('HTML transformed successfully!', 'success');
             } else {
                 this.showStatus(`Transformation error: ${result.error}`, 'error');
@@ -302,6 +303,43 @@ class HTMLTransformerApp {
         setTimeout(() => {
             this.elements.status.classList.add('hidden');
         }, 3000);
+    }
+    
+    showProcessingInfo(contentType, strategy) {
+        // Create or update processing info display
+        let infoElement = document.getElementById('processing-info');
+        if (!infoElement) {
+            infoElement = document.createElement('div');
+            infoElement.id = 'processing-info';
+            infoElement.className = 'processing-info';
+            
+            // Insert after the transform button
+            const transformBtn = document.getElementById('transform-btn');
+            transformBtn.parentNode.insertBefore(infoElement, transformBtn.nextSibling);
+        }
+        
+        const contentTypeClass = contentType === 'markdown' ? 'markdown-type' : 
+                                contentType === 'plain_text' ? 'plain-text-type' : 
+                                'empty-type';
+        
+        infoElement.innerHTML = `
+            <div class="info-header">Content Processing</div>
+            <div class="info-item">
+                <span class="label">Detected Type:</span>
+                <span class="value ${contentTypeClass}">${contentType.replace('_', ' ').toUpperCase()}</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Strategy:</span>
+                <span class="value">${strategy}</span>
+            </div>
+        `;
+        
+        // Auto-hide after 10 seconds
+        setTimeout(() => {
+            if (infoElement.parentNode) {
+                infoElement.parentNode.removeChild(infoElement);
+            }
+        }, 10000);
     }
 
     saveToLocalStorage() {

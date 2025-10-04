@@ -1,11 +1,11 @@
 # HTML Transformer Web Application
 
-✅ **COMPLETED** - Web app for transforming HTML while preserving similar styling
+✅ **COMPLETED** - Web app for translating page styles and transforming HTML content
 
 ## What was built:
 
 ### 🎯 Core Features
-- **URL Fetching**: Input WeChat URLs (or any URL) to fetch source HTML
+- **Page Style Translation**: Input WeChat URLs (or any URL) to translate page styling
 - **Dual Pane Interface**: Source HTML input on left, transformed result on right  
 - **Style Preservation**: Extracts CSS styles, inline styles, classes from source and applies to target content
 - **Live Preview**: Toggle between code view and rendered preview
@@ -36,5 +36,5 @@ html-transformer/
 3. `python main.py` - Start server
 4. Open http://localhost:8000
 
-The app is fully functional and ready to transform HTML content!
+The app is fully functional and ready to translate page styles and transform HTML content!
 

@@ -11,7 +11,8 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import logging
-from typing import Optional
+from typing import Optional, Dict, Tuple
+import markdown
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -32,6 +33,82 @@ class HTMLTransformer:
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         })
+    
+    def detect_content_type(self, content: str) -> Tuple[str, str]:
+        """
+        Detect if content is Markdown or plain text
+        Returns: (content_type, processed_content)
+        """
+        if not content.strip():
+            return "empty", ""
+        
+        # Common Markdown patterns
+        markdown_patterns = [
+            r'^#{1,6}\s+',  # Headers
+            r'^\*{1,2}.+\*{1,2}$',  # Bold/italic
+            r'^\*\s+.+',  # Unordered list
+            r'^\d+\.\s+.+',  # Ordered list
+            r'^\s*>\s+.+',  # Blockquote
+            r'^\s*```',  # Code block
+            r'^\s*-{3,}',  # Horizontal rule
+            r'\[.+\]\(.+\)',  # Link
+            r'!\[.*\]\(.+\)',  # Image
+            r'`[^`]+`',  # Inline code
+        ]
+        
+        markdown_score = 0
+        lines = content.split('\n')
+        
+        for line in lines:
+            if not line.strip():
+                continue
+            for pattern in markdown_patterns:
+                if re.search(pattern, line, re.MULTILINE):
+                    markdown_score += 1
+                    break
+        
+        # If more than 20% of non-empty lines match Markdown patterns, consider it Markdown
+        non_empty_lines = [line for line in lines if line.strip()]
+        if non_empty_lines and (markdown_score / len(non_empty_lines)) > 0.2:
+            return "markdown", content
+        
+        return "plain_text", content
+    
+    def process_target_content(self, content: str) -> Tuple[str, str]:
+        """
+        Process target content based on its type
+        Returns: (content_type, processed_html)
+        """
+        content_type, processed_content = self.detect_content_type(content)
+        
+        if content_type == "markdown":
+            # Convert Markdown to HTML
+            html_content = markdown.markdown(
+                processed_content,
+                extensions=['tables', 'fenced_code', 'codehilite', 'toc']
+            )
+            return "markdown", html_content
+        elif content_type == "plain_text":
+            # Convert plain text to HTML paragraphs
+            paragraphs = processed_content.split('\n\n')
+            html_paragraphs = []
+            
+            for paragraph in paragraphs:
+                if paragraph.strip():
+                    # Handle single line breaks within paragraphs
+                    lines = paragraph.split('\n')
+                    if len(lines) > 1:
+                        # Join lines with spaces for single line breaks
+                        paragraph_text = ' '.join(line.strip() for line in lines if line.strip())
+                    else:
+                        paragraph_text = paragraph.strip()
+                    
+                    html_paragraphs.append(f"<p>{paragraph_text}</p>")
+            
+            html_content = '\n'.join(html_paragraphs)
+            return "plain_text", html_content
+        else:
+            return "empty", ""
     
     def fetch_html_from_url(self, url: str) -> str:
         """Translate page style from a given URL"""
@@ -73,10 +150,13 @@ class HTMLTransformer:
         
         return styles
     
-    def transform_html(self, source_html: str, target_content: str) -> str:
+    def transform_html(self, source_html: str, target_content: str) -> Dict[str, str]:
         """Transform target content to match source styling"""
         source_soup = BeautifulSoup(source_html, 'html.parser')
-        target_soup = BeautifulSoup(target_content, 'html.parser')
+        
+        # Process target content based on its type
+        content_type, processed_html = self.process_target_content(target_content)
+        target_soup = BeautifulSoup(processed_html, 'html.parser')
         
         # Extract styles from source
         source_styles = self.extract_styles(source_soup)
@@ -84,7 +164,20 @@ class HTMLTransformer:
         # Apply similar styling to target
         transformed_soup = self.apply_similar_styling(target_soup, source_styles)
         
-        return str(transformed_soup)
+        return {
+            "transformed_html": str(transformed_soup),
+            "content_type": content_type,
+            "processing_strategy": self.get_processing_strategy(content_type)
+        }
+    
+    def get_processing_strategy(self, content_type: str) -> str:
+        """Get the processing strategy description based on content type"""
+        strategies = {
+            "markdown": "Markdown to HTML conversion with syntax highlighting",
+            "plain_text": "Plain text to HTML paragraphs conversion",
+            "empty": "Empty content detected"
+        }
+        return strategies.get(content_type, "Unknown content type")
     
     def apply_similar_styling(self, target_soup: BeautifulSoup, source_styles: dict) -> BeautifulSoup:
         """Apply similar styling from source to target HTML"""
@@ -146,8 +239,8 @@ async def transform_html(
         if not source_html.strip() or not target_content.strip():
             return {"success": False, "error": "Both source HTML and target content are required"}
         
-        transformed_html = transformer.transform_html(source_html, target_content)
-        return {"success": True, "transformed_html": transformed_html}
+        result = transformer.transform_html(source_html, target_content)
+        return {"success": True, **result}
     
     except Exception as e:
         logger.error(f"Error transforming HTML: {e}")

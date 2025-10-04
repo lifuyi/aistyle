@@ -7,6 +7,8 @@ A web application that transforms HTML content while preserving similar styling.
 - **Page Style Translation**: Extract and translate styling from URLs (especially WeChat articles)
 - **Dual Pane Interface**: Source HTML on the left, transformed result on the right
 - **Style Preservation**: Automatically extracts and applies similar styling from source to target content
+- **Content Type Detection**: Automatically detects whether target content is Markdown or plain text
+- **Smart Processing**: Different processing strategies for Markdown and plain text content
 - **Live Preview**: Toggle between code view and live preview of transformed HTML
 - **Export Options**: Copy to clipboard or download as HTML file
 - **Auto-save**: Automatically saves your work to browser localStorage
@@ -15,7 +17,7 @@ A web application that transforms HTML content while preserving similar styling.
 
 - **Backend**: Python with FastAPI
 - **Frontend**: Vanilla HTML, CSS, JavaScript
-- **Dependencies**: BeautifulSoup4, Requests, Jinja2
+- **Dependencies**: BeautifulSoup4, Requests, Jinja2, Markdown
 - **Package Management**: UV with pyproject.toml
 
 ## Setup
@@ -74,6 +76,9 @@ A web application that transforms HTML content while preserving similar styling.
 - **Page Style Translation**: Supports translating styles from any public URL, optimized for WeChat articles
 - **Style Extraction**: Automatically extracts CSS rules, inline styles, classes, and IDs
 - **Smart Styling**: Applies the most common styles from source to similar elements in target
+- **Content Type Detection**: Automatically identifies whether target content is Markdown or plain text
+- **Markdown Processing**: Converts Markdown to HTML with syntax highlighting, tables, and code blocks
+- **Plain Text Processing**: Converts plain text to HTML paragraphs while preserving line breaks
 - **Format HTML**: Clean up and format your source HTML for better readability
 - **Auto-save**: Your work is automatically saved and restored when you return
 
@@ -98,13 +103,15 @@ Transforms target content to match source HTML styling.
 
 **Parameters:**
 - `source_html` (form data): The source HTML with styling
-- `target_content` (form data): The content to be transformed
+- `target_content` (form data): The content to be transformed (Markdown or plain text)
 
 **Response:**
 ```json
 {
     "success": true,
-    "transformed_html": "<!-- transformed HTML -->"
+    "transformed_html": "<!-- transformed HTML -->",
+    "content_type": "markdown|plain_text|empty",
+    "processing_strategy": "Description of the processing strategy used"
 }
 ```
 
@@ -139,21 +146,23 @@ uv add package-name
 
 ## Common Use Cases
 
-1. **WeChat Article Transformation**: Convert WeChat article content while maintaining their styling
+1. **WeChat Article Style Translation**: Translate WeChat article styling to new content
 2. **Content Migration**: Move content between different platforms while preserving appearance
 3. **Style Template Creation**: Extract styling from one piece of content to apply to another
 4. **HTML Cleanup**: Format and clean up HTML while preserving essential styling
+5. **Markdown to Styled HTML**: Convert Markdown content to styled HTML matching a target design
+6. **Plain Text Enhancement**: Transform plain text into well-formatted HTML with applied styling
 
 ## Troubleshooting
 
-### URL Fetching Issues
+### Page Style Translation Issues
 - Ensure the URL is publicly accessible
 - Some sites may block automated requests
-- Try copying the HTML directly if URL fetching fails
+- Try copying the HTML directly if style translation fails
 
 ### Styling Issues
-- The transformer works best with inline styles and embedded CSS
-- External stylesheets are not fetched automatically
+- The style translator works best with inline styles and embedded CSS
+- External stylesheets are not translated automatically
 - Complex CSS selectors may not be preserved perfectly
 
 ### Browser Compatibility
