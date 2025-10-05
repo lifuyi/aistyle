@@ -13,6 +13,8 @@ import re
 import logging
 from typing import Optional, Dict, Tuple
 import markdown
+import httpx
+import json
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -74,44 +76,21 @@ class HTMLTransformer:
         
         return "plain_text", content
     
-    def convert_text_to_markdown(self, text: str) -> str:
+    def convert_plain_text_to_html_paragraphs(self, text: str) -> str:
         """
-        Convert plain text to markdown using an external API
+        Convert plain text to HTML paragraphs as a fallback
         """
-        try:
-            # Using a simple text-to-markdown conversion service
-            # In a real implementation, you might use OpenAI API or similar
-            # For now, we'll do basic conversion locally
-            
-            # Basic text to markdown conversion
-            lines = text.split('\n')
-            markdown_lines = []
-            
-            for line in lines:
-                stripped_line = line.strip()
-                if not stripped_line:
-                    markdown_lines.append("")  # Preserve empty lines
-                    continue
-                
-                # Convert numbered lists
-                if re.match(r'^\d+\.\s+', stripped_line):
-                    markdown_lines.append(stripped_line)
-                # Convert bullet points
-                elif stripped_line.startswith('•') or stripped_line.startswith('-') or stripped_line.startswith('*'):
-                    markdown_lines.append(f"- {stripped_line[1:].strip()}")
-                # Convert potential headers (all caps or short lines)
-                elif len(stripped_line) < 50 and stripped_line.isupper():
-                    markdown_lines.append(f"## {stripped_line.title()}")
-                # Regular paragraph
-                else:
-                    markdown_lines.append(stripped_line)
-            
-            return '\n'.join(markdown_lines)
-            
-        except Exception as e:
-            logger.error(f"Error converting text to markdown: {e}")
-            # Fallback to original text if conversion fails
-            return text
+        lines = text.split('\n')
+        html_lines = []
+        
+        for line in lines:
+            stripped_line = line.strip()
+            if not stripped_line:
+                html_lines.append("<br>")
+            else:
+                html_lines.append(f"<p>{stripped_line}</p>")
+        
+        return '\n'.join(html_lines)
     
     def process_target_content(self, content: str) -> Tuple[str, str]:
         """
@@ -128,12 +107,9 @@ class HTMLTransformer:
             )
             return "markdown", html_content
         elif content_type == "plain_text":
-            # Convert plain text to markdown first, then to HTML
-            markdown_content = self.convert_text_to_markdown(processed_content)
-            html_content = markdown.markdown(
-                markdown_content,
-                extensions=['tables', 'fenced_code', 'codehilite', 'toc']
-            )
+            # Note: For the transform endpoint, we'll handle API calls at the route level
+            # This method is kept for backward compatibility but should not be used for plain text
+            html_content = self.convert_plain_text_to_html_paragraphs(processed_content)
             return "plain_text", html_content
         else:
             return "empty", ""
@@ -241,6 +217,86 @@ class HTMLTransformer:
 transformer = HTMLTransformer()
 
 
+async def convert_text_to_markdown_api(text: str) -> str:
+    """
+    Convert plain text to markdown using external API
+    """
+    api_url = "http://144.34.235.25:5678/webhook-test/0f76866c-7ec4-47da-997a-cd979f281835"
+    
+    try:
+        logger.info(f"Calling external API to convert text: {text[:100]}...")
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                api_url,
+                json={"txt": text},
+                headers={"Content-Type": "application/json"}
+            )
+            
+            logger.info(f"API response status: {response.status_code}")
+            response.raise_for_status()
+            
+            result = response.json()
+            logger.info(f"API response: {result}")
+            
+            if "output" in result:
+                logger.info("Successfully converted text to markdown via API")
+                return result["output"]
+            else:
+                logger.warning("API response missing 'output' field, falling back to original text")
+                return text
+                
+    except httpx.ConnectTimeout as e:
+        logger.error(f"Connection timeout calling text-to-markdown API: {e}")
+        return basic_text_to_markdown_fallback(text)
+    except httpx.ReadTimeout as e:
+        logger.error(f"Read timeout calling text-to-markdown API: {e}")
+        return basic_text_to_markdown_fallback(text)
+    except httpx.RequestError as e:
+        logger.error(f"Network error calling text-to-markdown API: {e}")
+        return basic_text_to_markdown_fallback(text)
+    except httpx.HTTPStatusError as e:
+        logger.error(f"HTTP error from text-to-markdown API: {e.response.status_code} - {e.response.text}")
+        return basic_text_to_markdown_fallback(text)
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON response from text-to-markdown API: {e}")
+        return basic_text_to_markdown_fallback(text)
+    except Exception as e:
+        logger.error(f"Unexpected error calling text-to-markdown API: {e}")
+        return basic_text_to_markdown_fallback(text)
+
+
+def basic_text_to_markdown_fallback(text: str) -> str:
+    """
+    Basic fallback conversion from plain text to markdown
+    """
+    logger.info("Using basic fallback for text-to-markdown conversion")
+    
+    lines = text.split('\n')
+    markdown_lines = []
+    
+    for line in lines:
+        stripped_line = line.strip()
+        if not stripped_line:
+            markdown_lines.append("")  # Preserve empty lines
+            continue
+        
+        # Convert numbered lists
+        if re.match(r'^\d+\.\s+', stripped_line):
+            markdown_lines.append(stripped_line)
+        # Convert bullet points
+        elif stripped_line.startswith('•') or stripped_line.startswith('-') or stripped_line.startswith('*'):
+            markdown_lines.append(f"- {stripped_line[1:].strip()}")
+        # Convert potential headers (all caps or short lines)
+        elif len(stripped_line) < 50 and stripped_line.isupper():
+            markdown_lines.append(f"## {stripped_line.title()}")
+        # Regular paragraph
+        else:
+            markdown_lines.append(stripped_line)
+    
+    return '\n'.join(markdown_lines)
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """Serve the main application page"""
@@ -270,8 +326,8 @@ async def process_source_text(source_text: str = Form(...)):
             # Already markdown, return as is
             processed_content = source_text
         elif content_type == "plain_text":
-            # Convert plain text to markdown
-            processed_content = transformer.convert_text_to_markdown(source_text)
+            # Convert plain text to markdown using external API
+            processed_content = await convert_text_to_markdown_api(source_text)
         else:
             processed_content = source_text
         
@@ -296,15 +352,19 @@ async def transform_html(
         if not source_html.strip() or not target_content.strip():
             return {"success": False, "error": "Both source HTML and target content are required"}
         
-        result = transformer.transform_html(source_html, target_content)
-        
-        # Add the original content and the processed markdown for editing
+        # Detect content type and handle plain text with API
         content_type, _ = transformer.detect_content_type(target_content)
+        
         if content_type == "plain_text":
-            processed_markdown = transformer.convert_text_to_markdown(target_content)
+            # Convert plain text to markdown using external API
+            markdown_content = await convert_text_to_markdown_api(target_content)
+            # Now transform the markdown content
+            result = transformer.transform_html(source_html, markdown_content)
             result["original_content"] = target_content
-            result["processed_markdown"] = processed_markdown
+            result["processed_markdown"] = markdown_content
         else:
+            # Handle markdown content normally
+            result = transformer.transform_html(source_html, target_content)
             result["original_content"] = target_content
             result["processed_markdown"] = target_content
         
