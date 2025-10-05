@@ -7,9 +7,7 @@ class HTMLTransformerApp {
             sourceHtml: document.getElementById('source-html'),
             targetContent: document.getElementById('target-content'),
             transformBtn: document.getElementById('transform-btn'),
-            resultHtml: document.getElementById('result-html'),
             resultContainer: document.getElementById('result-container'),
-            resultCode: document.getElementById('result-code'),
             resultPreview: document.getElementById('result-preview'),
             previewFrame: document.getElementById('preview-frame'),
             loading: document.getElementById('loading'),
@@ -17,11 +15,9 @@ class HTMLTransformerApp {
             clearSource: document.getElementById('clear-source'),
             addToTarget: document.getElementById('add-to-target'),
             copyResult: document.getElementById('copy-result'),
-            downloadResult: document.getElementById('download-result'),
-            previewToggle: document.getElementById('preview-toggle')
+            downloadResult: document.getElementById('download-result')
         };
         
-        this.isPreviewMode = false;
         this.lastTransformedHtml = '';
         
         this.bindEvents();
@@ -35,7 +31,6 @@ class HTMLTransformerApp {
         this.elements.addToTarget.addEventListener('click', () => this.addToTarget());
         this.elements.copyResult.addEventListener('click', () => this.copyResult());
         this.elements.downloadResult.addEventListener('click', () => this.downloadResult());
-        this.elements.previewToggle.addEventListener('click', () => this.togglePreview());
         
         // Auto-save to localStorage
         this.elements.sourceHtml.addEventListener('input', () => this.saveToLocalStorage());
@@ -123,12 +118,7 @@ class HTMLTransformerApp {
                 this.displayResult(result.transformed_html);
                 this.showProcessingInfo(result.content_type, result.processing_strategy);
                 
-                // Update target content with processed markdown for editing
-                if (result.processed_markdown) {
-                    this.elements.targetContent.value = result.processed_markdown;
-                }
-                
-                this.showStatus('HTML transformed successfully! Target Content is now editable with processed markdown.', 'success');
+                this.showStatus('HTML transformed successfully!', 'success');
             } else {
                 this.showStatus(`Transformation error: ${result.error}`, 'error');
             }
@@ -142,37 +132,13 @@ class HTMLTransformerApp {
     }
 
     displayResult(html) {
-        // Display in code view
-        this.elements.resultHtml.textContent = this.formatHtml(html);
+        // Show the rendered preview
+        this.elements.resultPreview.style.display = 'block';
         
-        // Trigger Prism highlighting if available
-        if (window.Prism) {
-            Prism.highlightElement(this.elements.resultHtml);
-        }
-        
-        // Update preview if in preview mode
-        if (this.isPreviewMode) {
-            this.updatePreview(html);
-        }
+        // Update preview
+        this.updatePreview(html);
     }
 
-    togglePreview() {
-        this.isPreviewMode = !this.isPreviewMode;
-        
-        if (this.isPreviewMode) {
-            this.elements.resultCode.style.display = 'none';
-            this.elements.resultPreview.style.display = 'flex';
-            this.elements.previewToggle.textContent = 'Show Code';
-            
-            if (this.lastTransformedHtml) {
-                this.updatePreview(this.lastTransformedHtml);
-            }
-        } else {
-            this.elements.resultCode.style.display = 'flex';
-            this.elements.resultPreview.style.display = 'none';
-            this.elements.previewToggle.textContent = 'Toggle Preview';
-        }
-    }
 
     updatePreview(html) {
         const blob = new Blob([html], { type: 'text/html' });
@@ -243,11 +209,23 @@ class HTMLTransformerApp {
         }
         
         try {
-            await navigator.clipboard.writeText(this.lastTransformedHtml);
-            this.showStatus('Result copied to clipboard!', 'success');
+            // Try to copy as rich media format (HTML) first
+            if (navigator.clipboard && navigator.clipboard.write) {
+                const clipboardItem = new ClipboardItem({
+                    'text/html': new Blob([this.lastTransformedHtml], { type: 'text/html' }),
+                    'text/plain': new Blob([this.lastTransformedHtml], { type: 'text/plain' })
+                });
+                await navigator.clipboard.write([clipboardItem]);
+                this.showStatus('Rich media content copied to clipboard!', 'success');
+            } else {
+                // Fallback to plain text for compatibility
+                await navigator.clipboard.writeText(this.lastTransformedHtml);
+                this.showStatus('HTML content copied to clipboard!', 'success');
+            }
         } catch (error) {
-            // Fallback for older browsers
-            this.fallbackCopyToClipboard(this.lastTransformedHtml);
+            console.log('Clipboard API failed, trying fallback:', error);
+            // Enhanced fallback for Debian/Linux systems
+            this.debianCompatibleCopy(this.lastTransformedHtml);
         }
     }
 
@@ -270,51 +248,100 @@ class HTMLTransformerApp {
         this.showStatus('File downloaded!', 'success');
     }
 
-    fallbackCopyToClipboard(text) {
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
-        textArea.style.top = '-999999px';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
+    debianCompatibleCopy(html) {
+        // Enhanced fallback that works better on Debian/Linux systems
         
+        // Method 1: Try execCommand with HTML content in a div
         try {
-            document.execCommand('copy');
-            this.showStatus('Result copied to clipboard!', 'success');
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            tempDiv.style.position = 'fixed';
+            tempDiv.style.left = '-999999px';
+            tempDiv.style.top = '-999999px';
+            tempDiv.contentEditable = true;
+            document.body.appendChild(tempDiv);
+            
+            // Select the content
+            const range = document.createRange();
+            range.selectNodeContents(tempDiv);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            
+            // Try to copy as rich content
+            const successful = document.execCommand('copy');
+            document.body.removeChild(tempDiv);
+            
+            if (successful) {
+                this.showStatus('Rich content copied to clipboard!', 'success');
+                return;
+            }
         } catch (error) {
-            this.showStatus('Copy failed - please copy manually', 'error');
+            console.log('Rich content copy failed:', error);
         }
         
-        document.body.removeChild(textArea);
-    }
-
-    formatHtml(html) {
-        // Simple HTML formatting
-        return html
-            .replace(/></g, '>\n<')
-            .replace(/^\s+|\s+$/g, '')
-            .split('\n')
-            .map(line => line.trim())
-            .filter(line => line.length > 0)
-            .map((line, index, array) => {
-                const depth = this.getHtmlDepth(array.slice(0, index + 1));
-                return '  '.repeat(Math.max(0, depth)) + line;
-            })
-            .join('\n');
-    }
-
-    getHtmlDepth(lines) {
-        let depth = 0;
-        for (const line of lines) {
-            const openTags = (line.match(/<[^/][^>]*>/g) || []).length;
-            const closeTags = (line.match(/<\/[^>]*>/g) || []).length;
-            const selfClosing = (line.match(/<[^>]*\/>/g) || []).length;
-            depth += openTags - closeTags - selfClosing;
+        // Method 2: Fallback to plain text copy
+        try {
+            const textArea = document.createElement('textarea');
+            textArea.value = html;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            if (successful) {
+                this.showStatus('HTML code copied to clipboard!', 'success');
+            } else {
+                this.showManualCopyDialog(html);
+            }
+        } catch (error) {
+            console.log('Text copy also failed:', error);
+            this.showManualCopyDialog(html);
         }
-        return Math.max(0, depth);
     }
+    
+    showManualCopyDialog(html) {
+        // Show a dialog with the HTML for manual copying
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); z-index: 10000;
+            display: flex; align-items: center; justify-content: center;
+        `;
+        
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background: white; padding: 20px; border-radius: 8px;
+            max-width: 80%; max-height: 80%; overflow: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        `;
+        
+        dialog.innerHTML = `
+            <h3>Copy HTML Manually</h3>
+            <p>Please select all and copy the content below:</p>
+            <textarea readonly style="width: 100%; height: 300px; font-family: monospace; font-size: 12px;">${html}</textarea>
+            <div style="margin-top: 10px; text-align: right;">
+                <button onclick="this.closest('.manual-copy-modal').remove()" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+            </div>
+        `;
+        
+        modal.className = 'manual-copy-modal';
+        modal.appendChild(dialog);
+        document.body.appendChild(modal);
+        
+        // Auto-select the textarea content
+        const textarea = dialog.querySelector('textarea');
+        textarea.focus();
+        textarea.select();
+        
+        this.showStatus('Manual copy dialog opened', 'error');
+    }
+
 
     isValidUrl(string) {
         try {
