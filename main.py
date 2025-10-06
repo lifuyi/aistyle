@@ -217,16 +217,20 @@ class HTMLTransformer:
 transformer = HTMLTransformer()
 
 
-async def convert_text_to_markdown_api(text: str) -> str:
+async def convert_text_to_markdown_api(text: str, mode: str = "test") -> str:
     """
     Convert plain text to markdown using external API
     """
-    api_url = "http://144.34.235.25:5678/webhook-test/0f76866c-7ec4-47da-997a-cd979f281835"
-    
+    # Select API URL based on mode
+    if mode == "pro":
+        api_url = "http://144.34.235.252:5678/webhook/0f76866c-7ec4-47da-997a-cd979f281835"
+    else:
+        api_url = "http://144.34.235.252:5678/webhook-test/0f76866c-7ec4-47da-997a-cd979f281835"
+
     try:
         logger.info(f"Calling external API to convert text: {text[:100]}...")
         
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 api_url,
                 json={"txt": text},
@@ -239,12 +243,20 @@ async def convert_text_to_markdown_api(text: str) -> str:
             result = response.json()
             logger.info(f"API response: {result}")
             
-            if "output" in result:
-                logger.info("Successfully converted text to markdown via API")
+            # Handle both object and array response formats
+            if isinstance(result, list) and len(result) > 0:
+                # Array format - get output from first element
+                first_item = result[0]
+                if isinstance(first_item, dict) and "output" in first_item:
+                    logger.info("Successfully converted text to markdown via API (array format)")
+                    return first_item["output"]
+            elif isinstance(result, dict) and "output" in result:
+                # Object format
+                logger.info("Successfully converted text to markdown via API (object format)")
                 return result["output"]
-            else:
-                logger.warning("API response missing 'output' field, falling back to original text")
-                return text
+            
+            logger.warning("API response missing 'output' field, falling back to original text")
+            return text
                 
     except httpx.ConnectTimeout as e:
         logger.error(f"Connection timeout calling text-to-markdown API: {e}")
@@ -327,7 +339,10 @@ async def process_source_text(source_text: str = Form(...)):
             processed_content = source_text
         elif content_type == "plain_text":
             # Convert plain text to markdown using external API
-            processed_content = await convert_text_to_markdown_api(source_text)
+            # Determine mode from environment variable, default to "pro"
+            import os
+            mode = os.getenv("APP_MODE", "pro")
+            processed_content = await convert_text_to_markdown_api(source_text, mode)
         else:
             processed_content = source_text
         
@@ -357,7 +372,10 @@ async def transform_html(
         
         if content_type == "plain_text":
             # Convert plain text to markdown using external API
-            markdown_content = await convert_text_to_markdown_api(target_content)
+            # Determine mode from environment variable, default to "test"
+            import os
+            mode = os.getenv("APP_MODE", "test")
+            markdown_content = await convert_text_to_markdown_api(target_content, mode)
             # Now transform the markdown content
             result = transformer.transform_html(source_html, markdown_content)
             result["original_content"] = target_content

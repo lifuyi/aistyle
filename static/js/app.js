@@ -1,6 +1,8 @@
 // HTML Transformer Frontend Logic
 class HTMLTransformerApp {
     constructor() {
+        console.log('HTMLTransformerApp constructor called');
+        
         this.elements = {
             sourceUrl: document.getElementById('source-url'),
             fetchBtn: document.getElementById('fetch-btn'),
@@ -18,10 +20,21 @@ class HTMLTransformerApp {
             downloadResult: document.getElementById('download-result')
         };
         
+        console.log('Elements selected:', this.elements);
+        
+        // Check if any elements are missing
+        for (const [key, element] of Object.entries(this.elements)) {
+            if (!element) {
+                console.error(`Element with ID ${key} not found!`);
+            }
+        }
+        
         this.lastTransformedHtml = '';
         
         this.bindEvents();
         this.loadFromLocalStorage();
+        
+        console.log('HTMLTransformerApp constructor completed');
     }
 
     bindEvents() {
@@ -160,6 +173,8 @@ class HTMLTransformerApp {
     async addToTarget() {
         const sourceText = this.elements.sourceHtml.value.trim();
         
+        console.log('Add to target called with sourceText:', sourceText);
+        
         if (!sourceText) {
             this.showStatus('Please enter source text', 'error');
             return;
@@ -171,21 +186,32 @@ class HTMLTransformerApp {
             const formData = new FormData();
             formData.append('source_text', sourceText);
             
+            console.log('Sending request to /process-source');
+            
             const response = await fetch('/process-source', {
                 method: 'POST',
                 body: formData
             });
             
+            console.log('Received response from /process-source:', response);
+            
             const result = await response.json();
+            
+            console.log('Parsed result:', result);
             
             if (result.success) {
                 // Append to target content with a newline if there's existing content
                 const currentTarget = this.elements.targetContent.value;
+                console.log('Current target content:', currentTarget);
+                console.log('Processed content to add:', result.processed_content);
+                
                 if (currentTarget.trim()) {
                     this.elements.targetContent.value = currentTarget + '\n\n' + result.processed_content;
                 } else {
                     this.elements.targetContent.value = result.processed_content;
                 }
+                
+                console.log('Updated target content:', this.elements.targetContent.value);
                 
                 this.saveToLocalStorage();
                 this.showStatus(`Added ${result.content_type} content to Target`, 'success');
@@ -429,5 +455,7 @@ class HTMLTransformerApp {
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM loaded, initializing HTMLTransformerApp');
     new HTMLTransformerApp();
+    console.log('HTMLTransformerApp initialized');
 });
