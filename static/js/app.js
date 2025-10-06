@@ -200,16 +200,10 @@ class HTMLTransformerApp {
             console.log('Parsed result:', result);
             
             if (result.success) {
-                // Append to target content with a newline if there's existing content
-                const currentTarget = this.elements.targetContent.value;
-                console.log('Current target content:', currentTarget);
+                // Replace target content instead of appending
                 console.log('Processed content to add:', result.processed_content);
                 
-                if (currentTarget.trim()) {
-                    this.elements.targetContent.value = currentTarget + '\n\n' + result.processed_content;
-                } else {
-                    this.elements.targetContent.value = result.processed_content;
-                }
+                this.elements.targetContent.value = result.processed_content;
                 
                 console.log('Updated target content:', this.elements.targetContent.value);
                 
